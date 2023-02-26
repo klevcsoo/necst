@@ -143,7 +143,9 @@ export type Universe<CompMap extends BaseComponentMap> = {
     update(resetTime?: boolean): void
     /**
      * Creates a view that contains the queried components for
-     * each applicable entity
+     * each applicable entity.
+     *
+     * Not recommended to use on its own.
      * @param components the queried components
      */
     view<CompNames extends (keyof CompMap)[] = (keyof CompMap)[]>(
