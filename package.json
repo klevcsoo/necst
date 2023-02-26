@@ -1,0 +1,26 @@
+{
+  "name": "necst",
+  "version": "0.0.1",
+  "description": "A type-safe entity component system written in TypeScript",
+  "main": "build/index.js",
+  "scripts": {
+    "test": "jest",
+    "build": "tsc",
+    "preinstall": "npm run build"
+  },
+  "keywords": [
+    "entity-component-system",
+    "ecs",
+    "typescript",
+    "types"
+  ],
+  "author": "Keve Lajsz",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.4.0",
+    "@types/node": "^18.14.1",
+    "jest": "^29.4.3",
+    "ts-jest": "^29.0.5",
+    "typescript": "^4.9.5"
+  }
+}
