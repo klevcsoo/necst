@@ -39,7 +39,7 @@ type MyComponentMap = {
     velocity: typeof VelocityComponentClass;
 };
 
-const movementSystem: EntitySystem<MyComponentMap> = ({createView}) => {
+const movementSystem: EntitySystem<MyComponentMap> = (createView) => {
     for (const {uuid, position, velocity} of createView("position", "velocity")) {
         position.x += velocity.x;
         position.y += velocity.y;
