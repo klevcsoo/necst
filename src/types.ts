@@ -26,18 +26,36 @@ export type BaseComponentMap = {
 }
 
 /**
- * Contains data about the registered entities. In essence,
+ * Similar to `BaseComponentMap`, but for your systems.
+ * @see BaseComponentMap
+ */
+export type BaseSystemList = readonly string[]
+
+/**
+ * Contains data about the existing entities. In essence,
  * it is a map of maps type, where the outer keys are the
  * UUIDs of the entities and inside of each entity, the keys
  * are the names of the component *(this elliminates the
  * possibility of an entity having more than one of one
  * component type)* and the values are the component objects
  * themselfs.
+ * @see SystemRegistry
  */
 export type EntityRegistry<CompMap extends BaseComponentMap> = {
     [uuid: string]: Partial<{
         [componentName in keyof CompMap]: CompMap[componentName]
     }>
+}
+
+/**
+ * Contains the registered systems.
+ * @see EntityRegistry
+ */
+export type SystemRegistry<
+    CompMap extends BaseComponentMap,
+    SysList extends BaseSystemList
+> = {
+    [name in SysList[number]]?: EntitySystem<CompMap, SysList>
 }
 
 /**
@@ -68,7 +86,10 @@ export type ComponentQuery<CompMap extends BaseComponentMap> = (keyof CompMap)[]
 /**
  * Actions that can be performed by a system.
  */
-export type EntitySystemActions<CompMap extends BaseComponentMap> = {
+export type EntitySystemActions<
+    CompMap extends BaseComponentMap,
+    SysList extends BaseSystemList
+> = {
     /**
      * Creates a view that contains the queried components foreach applicable entity.
      * @param comps the queried components
@@ -83,7 +104,7 @@ export type EntitySystemActions<CompMap extends BaseComponentMap> = {
      * @param command the name of the command
      * @param data the data that does along with the command (optional)
      */
-    sendCommand<T = unknown>(system: string, command: string, data?: T): void
+    sendCommand<T = unknown>(system: SysList[number], command: string, data?: T): void
     /**
      * Using this, you can handle the commands for the current system.
      * When called, the command that is to be handled is removed from
@@ -117,8 +138,9 @@ export type EntitySystemActions<CompMap extends BaseComponentMap> = {
  * }
  */
 export type EntitySystem<
-    CompMap extends BaseComponentMap
-> = (actions: EntitySystemActions<CompMap>, time: number, delta: number) => void
+    CompMap extends BaseComponentMap,
+    SysList extends BaseSystemList
+> = (actions: EntitySystemActions<CompMap, SysList>, time: number, delta: number) => void
 
 /**
  * A `Universe` if the container of an Entity Component System.
@@ -127,7 +149,7 @@ export type EntitySystem<
  * entities. Use `createUniverse` to get started.
  * @see createUniverse
  */
-export type Universe<CompMap extends BaseComponentMap> = {
+export type Universe<CompMap extends BaseComponentMap, SysList extends BaseSystemList> = {
     /**
      * Creates an entity in the universe with no components.
      * @returns the UUID of the entity
@@ -156,12 +178,12 @@ export type Universe<CompMap extends BaseComponentMap> = {
      * @param name the custom name of the system
      * @param system the system function to be run on update
      */
-    register(name: string, system: EntitySystem<CompMap>): void
+    register(name: SysList[number], system: EntitySystem<CompMap, SysList>): void
     /**
      * Unregisters a system from the universe.
      * @param name the custom name of the system
      */
-    unregister(name: string): void
+    unregister(name: SysList[number]): void
     /**
      * Updates the state of the universe by running all the
      * registered systems on all the entities.

@@ -1,4 +1,13 @@
-import {BaseComponentMap, EntityRegistry, EntitySystem, EntitySystemActions, EntityViewData, Universe} from "./types";
+import {
+    BaseComponentMap,
+    BaseSystemList,
+    EntityRegistry,
+    EntitySystem,
+    EntitySystemActions,
+    EntityViewData,
+    SystemRegistry,
+    Universe
+} from "./types";
 import {createRegistryView, registryError, typedKeys} from "./utils";
 
 /**
@@ -11,13 +20,14 @@ import {createRegistryView, registryError, typedKeys} from "./utils";
  * @see BaseComponentMap
  * @see Universe
  */
-export function createUniverse<CompMap extends BaseComponentMap>(): Universe<CompMap> {
+export function createUniverse<
+    CompMap extends BaseComponentMap = BaseComponentMap,
+    SysList extends BaseSystemList = BaseSystemList
+>(): Universe<CompMap, SysList> {
     const registry: EntityRegistry<CompMap> = {};
-    const systems: {
-        [name: string]: EntitySystem<CompMap>
-    } = {};
+    const systems: SystemRegistry<CompMap, SysList> = {};
     const commandQueue: {
-        [systemName: string]: {
+        [systemName in SysList[number]]?: {
             [commandName: string]: unknown
         }
     } = {};
@@ -25,13 +35,13 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
     let createdAt = Date.now();
     let lastUpdateAt = createdAt;
 
-    const create: Universe<CompMap>["create"] = () => {
+    const create: Universe<CompMap, SysList>["create"] = () => {
         const uuid = crypto.randomUUID();
         registry[uuid] = {};
         return uuid;
     };
 
-    const attach: Universe<CompMap>["attach"] = (uuid, name, data) => {
+    const attach: Universe<CompMap, SysList>["attach"] = (uuid, name, data) => {
         if (!registry[uuid]) {
             registryError("Attempted to attach component to nonexistent entity");
         }
@@ -39,7 +49,7 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
         registry[uuid][name] = data;
     };
 
-    const detach: Universe<CompMap>["detach"] = (uuid, componentName) => {
+    const detach: Universe<CompMap, SysList>["detach"] = (uuid, componentName) => {
         if (!registry[uuid]) {
             registryError("Attempted to detach component from nonexistent entity");
         }
@@ -47,7 +57,7 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
         delete registry[uuid][componentName];
     };
 
-    const destroy: Universe<CompMap>["destroy"] = (uuid) => {
+    const destroy: Universe<CompMap, SysList>["destroy"] = (uuid) => {
         if (!registry[uuid]) {
             registryError("Attempted to destroy nonexistent entity");
         }
@@ -55,11 +65,11 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
         delete registry[uuid];
     };
 
-    const register: Universe<CompMap>["register"] = (name, system) => {
+    const register: Universe<CompMap, SysList>["register"] = (name, system) => {
         systems[name] = system;
     };
 
-    const unregister: Universe<CompMap>["unregister"] = (name) => {
+    const unregister: Universe<CompMap, SysList>["unregister"] = (name) => {
         if (!systems[name]) {
             registryError("Attempted to unregister nonexistent system");
         }
@@ -67,7 +77,7 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
         delete systems[name];
     };
 
-    const update: Universe<CompMap>["update"] = (resetTime) => {
+    const update: Universe<CompMap, SysList>["update"] = (resetTime) => {
         const now = Date.now();
         if (resetTime) createdAt = now;
 
@@ -76,26 +86,29 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
         lastUpdateAt = now;
 
         for (const systemName of typedKeys(systems)) {
-            const actions: EntitySystemActions<CompMap> = {
+            const actions: EntitySystemActions<CompMap, SysList> = {
                 createView(...comps): Iterable<EntityViewData<CompMap>> {
                     return createRegistryView(registry, comps);
                 },
-                sendCommand<T = unknown>(system: string, command: string, data?: T) {
+                sendCommand<T = unknown>(system: SysList[number], command: string, data?: T) {
                     if (!commandQueue[system]) commandQueue[system] = {};
-                    commandQueue[system][command] = data;
+                    // ⬇️ i have no clue ⬇️
+                    (commandQueue[system]! as any)[command] = data;
                 },
                 handleCommand<T = unknown>(command: string, handler: (data: T) => void) {
-                    const cmdData = commandQueue[systemName][command];
-                    if (!!cmdData) handler(cmdData as T);
-                    delete commandQueue[systemName][command];
+                    if (!commandQueue[systemName]) return;
+                    if (!commandQueue[systemName]![command]) return;
+
+                    handler(commandQueue[systemName]![command] as T);
+                    delete commandQueue[systemName]![command];
                 }
             };
 
-            systems[systemName](actions, time, delta);
+            systems[systemName]!(actions, time, delta);
         }
     };
 
-    const view: Universe<CompMap>["view"] = (...components) => {
+    const view: Universe<CompMap, SysList>["view"] = (...components) => {
         return createRegistryView(registry, components);
     };
 

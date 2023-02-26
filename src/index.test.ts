@@ -14,9 +14,11 @@ type ComponentMap = {
     velocity: VelocityComponent
 }
 
+type SystemList = ["movement", "commandSender", "commandReceiver"]
+
 const testEntityPosition: PositionComponent = {x: 5, y: 10};
 
-const movementSystem: EntitySystem<ComponentMap> = ({createView}) => {
+const movementSystem: EntitySystem<ComponentMap, SystemList> = ({createView}) => {
     const view = createView("position", "velocity");
     for (const {uuid, velocity, position} of view) {
         position.x += velocity.x;
@@ -27,18 +29,18 @@ const movementSystem: EntitySystem<ComponentMap> = ({createView}) => {
 
 let senderCommandValue = 0;
 let receiverCommandValue = 0;
-const commandSenderSystem: EntitySystem<ComponentMap> = ({sendCommand}) => {
+const commandSenderSystem: EntitySystem<ComponentMap, SystemList> = ({sendCommand}) => {
     sendCommand("commandReceiver", "test", ++senderCommandValue);
 };
 
-const commandReceiverSystem: EntitySystem<ComponentMap> = ({handleCommand}) => {
+const commandReceiverSystem: EntitySystem<ComponentMap, SystemList> = ({handleCommand}) => {
     handleCommand("test", (value: number) => {
         console.log("received 'test' command with value", value);
         receiverCommandValue = value;
     });
 };
 
-const universe = createUniverse<ComponentMap>();
+const universe = createUniverse<ComponentMap, SystemList>();
 
 test("universe exists", () => {
     expect(universe).not.toBeFalsy();
@@ -66,15 +68,15 @@ test("attach component to entity", () => {
 });
 
 test("register system", () => {
-    universe.register("movementSystem", movementSystem);
+    universe.register("movement", movementSystem);
 });
 
 test("unregister system", () => {
-    universe.unregister("movementSystem");
+    universe.unregister("movement");
 });
 
 test("update universe", () => {
-    universe.register("movementSystem", movementSystem);
+    universe.register("movement", movementSystem);
     universe.register("commandSender", commandSenderSystem);
     universe.register("commandReceiver", commandReceiverSystem);
 
