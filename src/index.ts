@@ -1,5 +1,4 @@
-import * as crypto from "crypto";
-import {BaseComponentMap, ComponentQuery, EntityRegistry, EntitySystem, Universe} from "./types";
+import {BaseComponentMap, EntityRegistry, EntitySystem, EntitySystemActions, EntityViewData, Universe} from "./types";
 import {createRegistryView, registryError, typedKeys} from "./utils";
 
 /**
@@ -16,6 +15,11 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
     const registry: EntityRegistry<CompMap> = {};
     const systems: {
         [name: string]: EntitySystem<CompMap>
+    } = {};
+    const commandQueue: {
+        [systemName: string]: {
+            [commandName: string]: unknown
+        }
     } = {};
 
     let createdAt = Date.now();
@@ -72,9 +76,22 @@ export function createUniverse<CompMap extends BaseComponentMap>(): Universe<Com
         lastUpdateAt = now;
 
         for (const systemName of typedKeys(systems)) {
-            systems[systemName]((...components: ComponentQuery<CompMap>) => {
-                return createRegistryView(registry, components);
-            }, time, delta);
+            const actions: EntitySystemActions<CompMap> = {
+                createView(...comps): Iterable<EntityViewData<CompMap>> {
+                    return createRegistryView(registry, comps);
+                },
+                sendCommand<T = unknown>(system: string, command: string, data?: T) {
+                    if (!commandQueue[system]) commandQueue[system] = {};
+                    commandQueue[system][command] = data;
+                },
+                handleCommand<T = unknown>(command: string, handler: (data: T) => void) {
+                    const cmdData = commandQueue[systemName][command];
+                    if (!!cmdData) handler(cmdData as T);
+                    delete commandQueue[systemName][command];
+                }
+            };
+
+            systems[systemName](actions, time, delta);
         }
     };
 

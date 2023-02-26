@@ -16,13 +16,26 @@ type ComponentMap = {
 
 const testEntityPosition: PositionComponent = {x: 5, y: 10};
 
-const movementSystem: EntitySystem<ComponentMap> = (createView) => {
+const movementSystem: EntitySystem<ComponentMap> = ({createView}) => {
     const view = createView("position", "velocity");
     for (const {uuid, velocity, position} of view) {
         position.x += velocity.x;
         position.y += velocity.y;
         console.log(`${uuid} has moved to ${JSON.stringify(testEntityPosition)}`);
     }
+};
+
+let senderCommandValue = 0;
+let receiverCommandValue = 0;
+const commandSenderSystem: EntitySystem<ComponentMap> = ({sendCommand}) => {
+    sendCommand("commandReceiver", "test", ++senderCommandValue);
+};
+
+const commandReceiverSystem: EntitySystem<ComponentMap> = ({handleCommand}) => {
+    handleCommand("test", (value: number) => {
+        console.log("received 'test' command with value", value);
+        receiverCommandValue = value;
+    });
 };
 
 const universe = createUniverse<ComponentMap>();
@@ -62,10 +75,16 @@ test("unregister system", () => {
 
 test("update universe", () => {
     universe.register("movementSystem", movementSystem);
+    universe.register("commandSender", commandSenderSystem);
+    universe.register("commandReceiver", commandReceiverSystem);
+
     (new Array(5)).fill(null).forEach(() => universe.update());
+
     expect(
         JSON.stringify(testEntityPosition)
     ).toBe(
         JSON.stringify({x: 10, y: -5})
     );
+
+    expect(receiverCommandValue).toBe(senderCommandValue);
 });

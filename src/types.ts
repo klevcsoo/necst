@@ -66,6 +66,35 @@ export type EntityViewData<
 export type ComponentQuery<CompMap extends BaseComponentMap> = (keyof CompMap)[]
 
 /**
+ * Actions that can be performed by a system.
+ */
+export type EntitySystemActions<CompMap extends BaseComponentMap> = {
+    /**
+     * Creates a view that contains the queried components foreach applicable entity.
+     * @param comps the queried components
+     */
+    createView(...comps: ComponentQuery<CompMap>): Iterable<EntityViewData<CompMap>>
+    /**
+     * Sends a command to a different system.
+     * If the command is handled by that system, depending on the
+     * order in which the systems were registered, it will be handled
+     * during the current update cycle, or the next one.
+     * @param system the system to send the command to
+     * @param command the name of the command
+     * @param data the data that does along with the command (optional)
+     */
+    sendCommand<T = unknown>(system: string, command: string, data?: T): void
+    /**
+     * Using this, you can handle the commands for the current system.
+     * When called, the command that is to be handled is removed from
+     * the command queue.
+     * @param command the command name
+     * @param handler the callback to be called to handle the command
+     */
+    handleCommand<T = unknown>(command: string, handler: (data: T) => void): void
+}
+
+/**
  * This is a scheme of what a system should look like.
  * Registered entity systems are run every time the
  * universe updates. Each system defines its own
@@ -77,7 +106,7 @@ export type ComponentQuery<CompMap extends BaseComponentMap> = (keyof CompMap)[]
  * update respectively *(both in milliseconds)*.
  *
  * @example
- * const movementSystem: EntitySystem = (createView) => {
+ * const movementSystem: EntitySystem = ({createView}) => {
  *     const view = createView("position", "velocity");
  *
  *     for (const {uuid, position, velocity} of view) {
@@ -89,9 +118,7 @@ export type ComponentQuery<CompMap extends BaseComponentMap> = (keyof CompMap)[]
  */
 export type EntitySystem<
     CompMap extends BaseComponentMap
-> = (createView: (
-    ...comps: ComponentQuery<CompMap>
-) => Iterable<EntityViewData<CompMap>>, time: number, delta: number) => void
+> = (actions: EntitySystemActions<CompMap>, time: number, delta: number) => void
 
 /**
  * A `Universe` if the container of an Entity Component System.
