@@ -104,9 +104,11 @@ export function createUniverse<
         for (const systemName of typedKeys(systems)) {
             if (!!schedules[systemName]) {
                 const schedule = schedules[systemName]!;
-                const multiplyAmount = schedule.seconds ? 1000 : 1;
+                const threshold = schedule.seconds ?
+                    schedule.x * 1000 :
+                    schedule.x - 1;
 
-                if (schedule.timeSinceLastUpdate < schedule.x * multiplyAmount) {
+                if (schedule.timeSinceLastUpdate < threshold) {
                     schedule.timeSinceLastUpdate += schedule.seconds ? delta : 1;
                     continue;
                 } else {
