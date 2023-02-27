@@ -31,6 +31,13 @@ export function createUniverse<
             [commandName: string]: unknown
         }
     } = {};
+    const schedules: {
+        [systemName in SysList[number]]?: {
+            x: number
+            seconds: boolean
+            timeSinceLastUpdate: number
+        }
+    } = {};
 
     let createdAt = Date.now();
     let lastUpdateAt = createdAt;
@@ -77,6 +84,14 @@ export function createUniverse<
         delete systems[name];
     };
 
+    const schedule: Universe<CompMap, SysList>["schedule"] = (sys, x, unit) => {
+        schedules[sys] = {
+            x: x,
+            seconds: unit === "seconds",
+            timeSinceLastUpdate: Number.MAX_SAFE_INTEGER
+        };
+    };
+
     const update: Universe<CompMap, SysList>["update"] = (resetTime) => {
         const now = Date.now();
         if (resetTime) createdAt = now;
@@ -86,6 +101,18 @@ export function createUniverse<
         lastUpdateAt = now;
 
         for (const systemName of typedKeys(systems)) {
+            if (!!schedules[systemName]) {
+                const schedule = schedules[systemName]!;
+                const multiplyAmount = schedule.seconds ? 1000 : 1;
+
+                if (schedule.timeSinceLastUpdate < schedule.x * multiplyAmount) {
+                    schedule.timeSinceLastUpdate += schedule.seconds ? delta : 1;
+                    continue;
+                } else {
+                    schedule.timeSinceLastUpdate = 0;
+                }
+            }
+
             const actions: EntitySystemActions<CompMap, SysList> = {
                 createView(...comps): Iterable<EntityViewData<CompMap>> {
                     return createRegistryView(registry, comps);
@@ -119,6 +146,7 @@ export function createUniverse<
         destroy: destroy,
         register: register,
         unregister: unregister,
+        schedule: schedule,
         update: update,
         view: view
     };

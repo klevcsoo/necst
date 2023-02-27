@@ -185,6 +185,13 @@ export type Universe<CompMap extends BaseComponentMap, SysList extends BaseSyste
      */
     unregister(name: SysList[number]): void
     /**
+     * Schedules a system to run every X updates or seconds.
+     * @param system name of the system to be scheduled
+     * @param x the amount to wait before executing the system again
+     * @param unit the unit of X
+     */
+    schedule(system: SysList[number], x: number, unit: "updates" | "seconds"): void
+    /**
      * Updates the state of the universe by running all the
      * registered systems on all the entities.
      * @param resetTime if true, the universe time resets
