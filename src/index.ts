@@ -1,6 +1,7 @@
 import {
     BaseComponentMap,
     BaseSystemList,
+    ComponentQuery,
     EntityRegistry,
     EntitySystem,
     EntitySystemActions,
@@ -114,7 +115,9 @@ export function createUniverse<
             }
 
             const actions: EntitySystemActions<CompMap, SysList> = {
-                createView(...comps): Iterable<EntityViewData<CompMap>> {
+                createView<
+                    Query extends ComponentQuery<CompMap>
+                >(...comps: Query): Iterable<EntityViewData<CompMap, Query>> {
                     return createRegistryView(registry, comps);
                 },
                 sendCommand<T = unknown>(system: SysList[number], command: string, data?: T) {

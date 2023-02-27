@@ -67,11 +67,11 @@ export type SystemRegistry<
  */
 export type EntityViewData<
     CompMap extends BaseComponentMap,
-    CompNames extends (keyof CompMap)[] = (keyof CompMap)[]
+    Query extends ComponentQuery<CompMap>
 > = {
     uuid: string
 } & {
-    [key in CompNames[number]]: CompMap[key]
+    [key in Query[number]]: CompMap[key]
 }
 
 /**
@@ -81,7 +81,7 @@ export type EntityViewData<
  * @example
  * const myQuery: ComponentQuery<MyComponentMap> = ["position", "velocity"]
  */
-export type ComponentQuery<CompMap extends BaseComponentMap> = (keyof CompMap)[]
+export type ComponentQuery<CompMap extends BaseComponentMap> = readonly (keyof CompMap)[]
 
 /**
  * Actions that can be performed by a system.
@@ -94,7 +94,9 @@ export type EntitySystemActions<
      * Creates a view that contains the queried components foreach applicable entity.
      * @param comps the queried components
      */
-    createView(...comps: ComponentQuery<CompMap>): Iterable<EntityViewData<CompMap>>
+    createView<
+        Query extends ComponentQuery<CompMap>
+    >(...comps: Query): Iterable<EntityViewData<CompMap, Query>>
     /**
      * Sends a command to a different system.
      * If the command is handled by that system, depending on the
@@ -204,7 +206,7 @@ export type Universe<CompMap extends BaseComponentMap, SysList extends BaseSyste
      * Not recommended to use on its own.
      * @param components the queried components
      */
-    view<CompNames extends (keyof CompMap)[] = (keyof CompMap)[]>(
-        ...components: CompNames
-    ): Iterable<EntityViewData<CompMap>>
+    view<
+        Query extends ComponentQuery<CompMap>
+    >(...components: Query): Iterable<EntityViewData<CompMap, Query>>
 }

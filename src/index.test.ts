@@ -9,9 +9,13 @@ type VelocityComponent = {
     x: number
     y: number
 }
+type CounterComponent = {
+    count: number
+}
 type ComponentMap = {
     position: PositionComponent
     velocity: VelocityComponent
+    counter: CounterComponent
 }
 
 type SystemList = ["movement", "commandSender", "commandReceiver"]
@@ -20,7 +24,7 @@ const testEntityPosition: PositionComponent = {x: 5, y: 10};
 
 const movementSystem: EntitySystem<ComponentMap, SystemList> = ({createView}) => {
     const view = createView("position", "velocity");
-    for (const {uuid, velocity, position} of view) {
+    for (const {uuid, position, velocity} of view) {
         position.x += velocity.x;
         position.y += velocity.y;
         console.log(`${uuid} has moved to ${JSON.stringify(testEntityPosition)}`);
@@ -59,7 +63,7 @@ test("attach component to entity", () => {
     universe.attach(entity, "position", position);
     universe.attach(entity, "velocity", velocity);
 
-    const entities: EntityViewData<ComponentMap>[] = [];
+    const entities: EntityViewData<ComponentMap, ["position"]>[] = [];
     for (const e of universe.view("position")) {
         entities.push(e);
     }

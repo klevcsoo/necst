@@ -9,16 +9,19 @@ export function typedKeys<T extends Object>(obj: T): (keyof T)[] {
     return Object.keys(obj) as (keyof T)[];
 }
 
-export function* createRegistryView<CompMap extends BaseComponentMap>(
-    registry: EntityRegistry<CompMap>, components: ComponentQuery<CompMap>
-): Iterable<EntityViewData<CompMap>> {
+export function* createRegistryView<
+    CompMap extends BaseComponentMap,
+    Query extends ComponentQuery<CompMap>
+>(
+    registry: EntityRegistry<CompMap>, components: Query
+): Iterable<EntityViewData<CompMap, Query>> {
     for (const uuid of Object.keys(registry)) {
         const entity = registry[uuid];
 
         if (components.every(value => !!entity[value])) {
-            const entityViewData: EntityViewData<CompMap> = {
+            const entityViewData: EntityViewData<CompMap, Query> = {
                 uuid: uuid
-            } as EntityViewData<CompMap>;
+            } as EntityViewData<CompMap, Query>;
 
             for (const compKey of typedKeys(entity)) {
                 if (components.includes(compKey)) {
