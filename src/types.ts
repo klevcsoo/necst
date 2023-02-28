@@ -42,9 +42,9 @@ export type BaseSystemList = readonly string[]
  * @see SystemRegistry
  */
 export type EntityRegistry<CompMap extends BaseComponentMap> = {
-    [uuid: string]: Partial<{
-        [componentName in keyof CompMap]: CompMap[componentName]
-    }>
+    [uuid: string]: {
+        [componentName in keyof CompMap]?: CompMap[componentName]
+    }
 }
 
 /**
