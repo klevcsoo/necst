@@ -42,13 +42,13 @@ export function createUniverse<
     let createdAt = Date.now();
     let lastUpdateAt = createdAt;
 
-    const create: Universe<CompMap, SysList>["create"] = () => {
+    const create: Universe<CompMap, SysList>["createEntity"] = () => {
         const uuid = crypto.randomUUID();
         registry[uuid] = {};
         return uuid;
     };
 
-    const attach: Universe<CompMap, SysList>["attach"] = (uuid, name, data) => {
+    const attach: Universe<CompMap, SysList>["attachComponent"] = (uuid, name, data) => {
         if (!registry[uuid]) {
             registryError("Attempted to attach component to nonexistent entity");
         }
@@ -56,7 +56,7 @@ export function createUniverse<
         registry[uuid][name] = data;
     };
 
-    const detach: Universe<CompMap, SysList>["detach"] = (uuid, componentName) => {
+    const detach: Universe<CompMap, SysList>["detachComponent"] = (uuid, componentName) => {
         if (!registry[uuid]) {
             registryError("Attempted to detach component from nonexistent entity");
         }
@@ -64,7 +64,7 @@ export function createUniverse<
         delete registry[uuid][componentName];
     };
 
-    const destroy: Universe<CompMap, SysList>["destroy"] = (uuid) => {
+    const destroy: Universe<CompMap, SysList>["destroyEntity"] = (uuid) => {
         if (!registry[uuid]) {
             registryError("Attempted to destroy nonexistent entity");
         }
@@ -72,11 +72,11 @@ export function createUniverse<
         delete registry[uuid];
     };
 
-    const register: Universe<CompMap, SysList>["register"] = (name, system) => {
+    const register: Universe<CompMap, SysList>["registerSystem"] = (name, system) => {
         systems[name] = system;
     };
 
-    const unregister: Universe<CompMap, SysList>["unregister"] = (name) => {
+    const unregister: Universe<CompMap, SysList>["unregisterSystem"] = (name) => {
         if (!systems[name]) {
             registryError("Attempted to unregister nonexistent system");
         }
@@ -84,7 +84,7 @@ export function createUniverse<
         delete systems[name];
     };
 
-    const schedule: Universe<CompMap, SysList>["schedule"] = (sys, x, unit) => {
+    const schedule: Universe<CompMap, SysList>["scheduleSystem"] = (sys, x, unit) => {
         schedules[sys] = {
             x: x,
             seconds: unit === "seconds",
@@ -144,13 +144,13 @@ export function createUniverse<
     };
 
     return {
-        create: create,
-        attach: attach,
-        detach: detach,
-        destroy: destroy,
-        register: register,
-        unregister: unregister,
-        schedule: schedule,
+        createEntity: create,
+        attachComponent: attach,
+        detachComponent: detach,
+        destroyEntity: destroy,
+        registerSystem: register,
+        unregisterSystem: unregister,
+        scheduleSystem: schedule,
         update: update,
         view: view
     };

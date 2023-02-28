@@ -156,43 +156,43 @@ export type Universe<CompMap extends BaseComponentMap, SysList extends BaseSyste
      * Creates an entity in the universe with no components.
      * @returns the UUID of the entity
      */
-    create(): string
+    createEntity(): string
     /**
      * Attaches a component to a specified entity.
      * @param uuid the UUID of the entity
      * @param name the custom name of the component
      * @param data the data object of the component
      */
-    attach<T extends keyof CompMap>(uuid: string, name: T, data: CompMap[T]): void
+    attachComponent<T extends keyof CompMap>(uuid: string, name: T, data: CompMap[T]): void
     /**
      * Detaches a component from a specified entity.
      * @param uuid the UUID of the entity
      * @param componentName the custom name of the component
      */
-    detach<T extends keyof CompMap>(uuid: string, componentName: T): void
+    detachComponent<T extends keyof CompMap>(uuid: string, componentName: T): void
     /**
      * Destroy a specified entity along with its components.
      * @param uuid the UUID of the entity
      */
-    destroy(uuid: string): void
+    destroyEntity(uuid: string): void
     /**
      * Registers a system to the universe.
      * @param name the custom name of the system
      * @param system the system function to be run on update
      */
-    register(name: SysList[number], system: EntitySystem<CompMap, SysList>): void
+    registerSystem(name: SysList[number], system: EntitySystem<CompMap, SysList>): void
     /**
      * Unregisters a system from the universe.
      * @param name the custom name of the system
      */
-    unregister(name: SysList[number]): void
+    unregisterSystem(name: SysList[number]): void
     /**
      * Schedules a system to run every X updates or seconds.
      * @param system name of the system to be scheduled
      * @param x the amount to wait before executing the system again
      * @param unit the unit of X
      */
-    schedule(system: SysList[number], x: number, unit: "updates" | "seconds"): void
+    scheduleSystem(system: SysList[number], x: number, unit: "updates" | "seconds"): void
     /**
      * Updates the state of the universe by running all the
      * registered systems on all the entities.

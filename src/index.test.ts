@@ -51,17 +51,17 @@ test("universe exists", () => {
 });
 
 test("create entity", () => {
-    const entity = universe.create();
+    const entity = universe.createEntity();
     expect(typeof entity).toBe("string");
 });
 
 test("attach component to entity", () => {
-    const entity = universe.create();
+    const entity = universe.createEntity();
     const position: PositionComponent = testEntityPosition;
     const velocity: VelocityComponent = {x: 1, y: -3};
 
-    universe.attach(entity, "position", position);
-    universe.attach(entity, "velocity", velocity);
+    universe.attachComponent(entity, "position", position);
+    universe.attachComponent(entity, "velocity", velocity);
 
     const entities: EntityViewData<ComponentMap, ["position"]>[] = [];
     for (const e of universe.view("position")) {
@@ -72,17 +72,17 @@ test("attach component to entity", () => {
 });
 
 test("register system", () => {
-    universe.register("movement", movementSystem);
+    universe.registerSystem("movement", movementSystem);
 });
 
 test("unregister system", () => {
-    universe.unregister("movement");
+    universe.unregisterSystem("movement");
 });
 
 test("update universe", () => {
-    universe.register("movement", movementSystem);
-    universe.register("commandSender", commandSenderSystem);
-    universe.register("commandReceiver", commandReceiverSystem);
+    universe.registerSystem("movement", movementSystem);
+    universe.registerSystem("commandSender", commandSenderSystem);
+    universe.registerSystem("commandReceiver", commandReceiverSystem);
 
     (new Array(5)).fill(null).forEach(() => universe.update());
 
