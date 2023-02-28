@@ -8,7 +8,7 @@ import {
     SystemRegistry,
     Universe
 } from "./types";
-import {createRegistryView, registryError, typedKeys} from "./utils";
+import {registryError, typedKeys} from "./utils";
 
 /**
  * Creates a `Universe`, from which you can controll your
@@ -154,4 +154,29 @@ export function createUniverse<
         update: update,
         view: view
     };
+}
+
+export function* createRegistryView<
+    CompMap extends BaseComponentMap,
+    Query extends ComponentQuery<CompMap>
+>(
+    registry: EntityRegistry<CompMap>, components: Query
+): Iterable<EntityViewData<CompMap, Query>> {
+    for (const uuid of Object.keys(registry)) {
+        const entity = registry[uuid];
+
+        if (components.every(value => !!entity[value])) {
+            const entityViewData: EntityViewData<CompMap, Query> = {
+                uuid: uuid
+            } as EntityViewData<CompMap, Query>;
+
+            for (const compKey of typedKeys(entity)) {
+                if (components.includes(compKey)) {
+                    (entityViewData[compKey] as any) = entity[compKey]!;
+                }
+            }
+
+            yield entityViewData;
+        }
+    }
 }
