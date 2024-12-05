@@ -139,10 +139,12 @@ export type EntitySystemActions<
  *     }
  * }
  */
-export type EntitySystem<
+export interface EntitySystem<
     CompMap extends BaseComponentMap,
     SysList extends BaseSystemList
-> = (actions: EntitySystemActions<CompMap, SysList>, time: number, delta: number) => void
+> {
+    (actions: EntitySystemActions<CompMap, SysList>, time: number, delta: number): void
+}
 
 /**
  * A `Universe` if the container of an Entity Component System.
