@@ -1,96 +1,131 @@
-import {createUniverse} from "./index";
-import {EntitySystem, EntityViewData} from "./types";
+import {BaseComponentMap, createUniverse, Universe} from "./index";
 
-type PositionComponent = {
-    x: number
-    y: number
-}
-type VelocityComponent = {
-    x: number
-    y: number
-}
-type CounterComponent = {
-    count: number
-}
-type ComponentMap = {
-    position: PositionComponent
-    velocity: VelocityComponent
-    counter: CounterComponent
+interface Vector2D {
+    x: number;
+    y: number;
 }
 
-type SystemList = ["movement", "commandSender", "commandReceiver"]
+interface CounterComponent {
+    count: number;
+}
 
-const testEntityPosition: PositionComponent = {x: 5, y: 10};
+interface ComponentMap extends BaseComponentMap {
+    position: Vector2D;
+    velocity: Vector2D;
+    counter: CounterComponent;
+}
 
-const movementSystem: EntitySystem<ComponentMap, SystemList> = ({createView}) => {
-    const view = createView("position", "velocity");
-    for (const {uuid, position, velocity} of view) {
-        position.x += velocity.x;
-        position.y += velocity.y;
-        console.log(`${uuid} has moved to ${JSON.stringify(testEntityPosition)}`);
-    }
-};
+type SystemList = [
+    "updatePosition",
+    "sendCommand", "receiveCommand",
+    "updateFreezeValue", "unfreezeFreezeValueUpdater"
+]
 
-let senderCommandValue = 0;
-let receiverCommandValue = 0;
-const commandSenderSystem: EntitySystem<ComponentMap, SystemList> = ({sendCommand}) => {
-    sendCommand("commandReceiver", "test", ++senderCommandValue);
-};
+let universe: Universe<ComponentMap, SystemList>;
+let entityUUID: string;
 
-const commandReceiverSystem: EntitySystem<ComponentMap, SystemList> = ({handleCommand}) => {
-    handleCommand("test", (value: number) => {
-        console.log("received 'test' command with value", value);
-        receiverCommandValue = value;
+beforeEach(done => {
+    universe = createUniverse<ComponentMap, SystemList>();
+    entityUUID = universe.createEntity();
+    const position: Vector2D = {x: 5, y: 10};
+    const velocity: Vector2D = {x: 1, y: -3};
+
+    universe.attachComponent(entityUUID, "position", position);
+    universe.attachComponent(entityUUID, "velocity", velocity);
+
+    universe.registerSystem("updatePosition", ({createView}) => {
+        const view = createView("position", "velocity");
+        for (const {position, velocity} of view) {
+            position.x += velocity.x;
+            position.y += velocity.y;
+        }
     });
-};
 
-const universe = createUniverse<ComponentMap, SystemList>();
+    done();
+});
 
-test("universe exists", () => {
+test("create universe", done => {
     expect(universe).not.toBeFalsy();
+
+    done();
 });
 
-test("create entity", () => {
-    const entity = universe.createEntity();
-    expect(typeof entity).toBe("string");
+test("create entity", done => {
+    expect(entityUUID).toBeDefined();
+    expect(typeof entityUUID).toBe("string");
+
+    done();
 });
 
-test("attach component to entity", () => {
-    const entity = universe.createEntity();
-    const position: PositionComponent = testEntityPosition;
-    const velocity: VelocityComponent = {x: 1, y: -3};
+test("attach component to entity", done => {
+    const entity = universe.cloneEntity(entityUUID);
 
-    universe.attachComponent(entity, "position", position);
-    universe.attachComponent(entity, "velocity", velocity);
+    expect(entity).toBeDefined();
+    expect(entity.position).toBeDefined();
+    expect(entity.velocity).toBeDefined();
 
-    const entities: EntityViewData<ComponentMap, ["position"]>[] = [];
-    for (const e of universe.view("position")) {
-        entities.push(e);
-    }
-
-    expect(entities.length).toBeGreaterThan(0);
+    done();
 });
 
-test("register system", () => {
-    universe.registerSystem("movement", movementSystem);
+test("register system", done => {
+    expect(universe.isSystemRegistered("updatePosition")).toBeTruthy();
+
+    done();
 });
 
-test("unregister system", () => {
-    universe.unregisterSystem("movement");
+test("unregister system", done => {
+    universe.unregisterSystem("updatePosition");
+    expect(universe.isSystemRegistered("updatePosition")).toBeFalsy();
+
+    done();
 });
 
-test("update universe", () => {
-    universe.registerSystem("movement", movementSystem);
-    universe.registerSystem("commandSender", commandSenderSystem);
-    universe.registerSystem("commandReceiver", commandReceiverSystem);
+test("update universe (with simple system)", done => {
+    for (let i = 0; i < 5; i++) universe.update();
 
-    (new Array(5)).fill(null).forEach(() => universe.update());
+    const entity = universe.cloneEntity(entityUUID);
+    expect(entity.position).toBeDefined();
+    expect(JSON.stringify(entity.position)).toBe(JSON.stringify({x: 10, y: -5}));
 
-    expect(
-        JSON.stringify(testEntityPosition)
-    ).toBe(
-        JSON.stringify({x: 10, y: -5})
-    );
+    done();
+});
+
+test("update universe (with command sending & handling)", done => {
+    let senderCommandValue: number = 0;
+    let receiverCommandValue: number = 0;
+
+    universe.registerSystem("sendCommand", ({sendCommand}) => {
+        sendCommand("receiveCommand", "test", ++senderCommandValue);
+    });
+    universe.registerSystem("receiveCommand", ({handleCommand}) => {
+        handleCommand("test", (value: number) => {
+            receiverCommandValue = value;
+        });
+    });
+
+    universe.update();
 
     expect(receiverCommandValue).toBe(senderCommandValue);
+
+    done();
+});
+
+test("update universe (with system freezing)", done => {
+    let value = 0;
+    let count = 0;
+
+    universe.registerSystem("updateFreezeValue", ({freezeSystem}) => {
+        value++;
+        freezeSystem();
+    });
+
+    universe.registerSystem("unfreezeFreezeValueUpdater", ({unfreezeSystem}) => {
+        if (count >= 3) unfreezeSystem("updateFreezeValue");
+    });
+
+    for (; count < 5; count++) universe.update();
+
+    expect(value).toBe(2);
+
+    done();
 });

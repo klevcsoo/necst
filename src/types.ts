@@ -55,7 +55,15 @@ export type SystemRegistry<
     CompMap extends BaseComponentMap,
     SysList extends BaseSystemList
 > = {
-    [name in SysList[number]]?: EntitySystem<CompMap, SysList>
+    [name in SysList[number]]?: {
+        isFrozen: boolean
+        schedule?: {
+            x: number
+            seconds: boolean
+            timeSinceLastUpdate: number
+        }
+        systemProcessor: EntitySystem<CompMap, SysList>
+    }
 }
 
 /**
@@ -115,6 +123,8 @@ export type EntitySystemActions<
      * @param handler the callback to be called to handle the command
      */
     handleCommand<T = unknown>(command: string, handler: (data: T) => void): void
+    freezeSystem(name?: SysList[number]): void
+    unfreezeSystem(name?: SysList[number]): void
 }
 
 /**
@@ -143,7 +153,7 @@ export interface EntitySystem<
     CompMap extends BaseComponentMap,
     SysList extends BaseSystemList
 > {
-    (actions: EntitySystemActions<CompMap, SysList>, time: number, delta: number): void
+    (actions: EntitySystemActions<CompMap, SysList>, time: number, delta: number): void;
 }
 
 /**
@@ -177,24 +187,27 @@ export type Universe<CompMap extends BaseComponentMap, SysList extends BaseSyste
      * @param uuid the UUID of the entity
      */
     destroyEntity(uuid: string): void
+    cloneEntity(uuid: string): EntityRegistry<CompMap>[string]
     /**
      * Registers a system to the universe.
      * @param name the custom name of the system
-     * @param system the system function to be run on update
+     * @param processor the system processor function to be run on update
      */
-    registerSystem(name: SysList[number], system: EntitySystem<CompMap, SysList>): void
+    registerSystem(name: SysList[number], processor: EntitySystem<CompMap, SysList>): void
     /**
      * Unregisters a system from the universe.
      * @param name the custom name of the system
      */
     unregisterSystem(name: SysList[number]): void
+    isSystemRegistered(name: SysList[number]): boolean
     /**
      * Schedules a system to run every X updates or seconds.
-     * @param system name of the system to be scheduled
+     * @param name name of the system to be scheduled
      * @param x the amount to wait before executing the system again
      * @param unit the unit of X
      */
-    scheduleSystem(system: SysList[number], x: number, unit: "updates" | "seconds"): void
+    scheduleSystem(name: SysList[number], x: number, unit: "updates" | "seconds"): void
+    unscheduleSystem(name: SysList[number]): void
     /**
      * Updates the state of the universe by running all the
      * registered systems on all the entities.

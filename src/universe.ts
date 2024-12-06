@@ -2,7 +2,8 @@ import {
     BaseComponentMap,
     BaseSystemList,
     ComponentQuery,
-    EntityRegistry, EntitySystem,
+    EntityRegistry,
+    EntitySystem,
     EntitySystemActions,
     EntityViewData,
     SystemRegistry,
@@ -24,67 +25,84 @@ export function createUniverse<
     CompMap extends BaseComponentMap = BaseComponentMap,
     SysList extends BaseSystemList = BaseSystemList
 >(): Universe<CompMap, SysList> {
-    const registry: EntityRegistry<CompMap> = {};
-    const systems: SystemRegistry<CompMap, SysList> = {};
+    const entityRegistry: EntityRegistry<CompMap> = {};
+    const systemRegistry: SystemRegistry<CompMap, SysList> = {};
     const commandQueue: {
         [systemName in SysList[number]]?: {
             [commandName: string]: unknown
         }
     } = {};
-    const schedules: {
-        [systemName in SysList[number]]?: {
-            x: number
-            seconds: boolean
-            timeSinceLastUpdate: number
-        }
-    } = {};
 
-    let createdAt = performance.now()
+    let createdAt = performance.now();
     let lastUpdateAt = createdAt;
 
     return {
         createEntity(): string {
             const uuid = crypto.randomUUID();
-            registry[uuid] = {};
+            entityRegistry[uuid] = {};
             return uuid;
         },
         attachComponent<T extends keyof CompMap>(uuid: string, name: T, data: CompMap[T]) {
-            if (!registry[uuid]) {
+            if (!entityRegistry[uuid]) {
                 registryError("Attempted to attach component to nonexistent entity");
             }
 
-            registry[uuid][name] = data;
+            entityRegistry[uuid][name] = data;
         },
         detachComponent<T extends keyof CompMap>(uuid: string, componentName: T) {
-            if (!registry[uuid]) {
+            if (!entityRegistry[uuid]) {
                 registryError("Attempted to detach component from nonexistent entity");
             }
 
-            delete registry[uuid][componentName];
+            delete entityRegistry[uuid][componentName];
         },
         destroyEntity(uuid: string) {
-            if (!registry[uuid]) {
+            if (!entityRegistry[uuid]) {
                 registryError("Attempted to destroy nonexistent entity");
             }
 
-            delete registry[uuid];
+            delete entityRegistry[uuid];
         },
-        registerSystem(name: SysList[number], system: EntitySystem<CompMap, SysList>) {
-            systems[name] = system;
+        cloneEntity(uuid: string): EntityRegistry<CompMap>[string] {
+            return {...entityRegistry[uuid]};
+        },
+        registerSystem(name: SysList[number], processor: EntitySystem<CompMap, SysList>) {
+            if (systemRegistry[name]) {
+                registryError("Attempted to register already registered system");
+            }
+
+            systemRegistry[name] = {
+                isFrozen: false,
+                systemProcessor: processor
+            };
         },
         unregisterSystem(name: SysList[number]) {
-            if (!systems[name]) {
+            if (!systemRegistry[name]) {
                 registryError("Attempted to unregister nonexistent system");
             }
 
-            delete systems[name];
+            delete systemRegistry[name];
         },
-        scheduleSystem(system: SysList[number], x: number, unit: "updates" | "seconds") {
-            schedules[system] = {
+        isSystemRegistered(name: SysList[number]): boolean {
+            return !!systemRegistry[name];
+        },
+        scheduleSystem(name: SysList[number], x: number, unit: "updates" | "seconds") {
+            if (!systemRegistry[name]) {
+                registryError("Attempted to schedule a nonexistent system");
+            }
+
+            systemRegistry[name]!.schedule = {
                 x: x,
                 seconds: unit === "seconds",
                 timeSinceLastUpdate: Number.MAX_SAFE_INTEGER
             };
+        },
+        unscheduleSystem(name: SysList[number]) {
+            if (!systemRegistry[name]) {
+                registryError("Attempted to unschedule a nonexistent system");
+            }
+
+            systemRegistry[name]!.schedule = undefined;
         },
         update(resetTime?: boolean) {
             const now = Date.now();
@@ -94,9 +112,13 @@ export function createUniverse<
             const delta = now - lastUpdateAt;
             lastUpdateAt = now;
 
-            for (const systemName of typedKeys(systems)) {
-                if (!!schedules[systemName]) {
-                    const schedule = schedules[systemName]!;
+            for (const systemName of typedKeys(systemRegistry)) {
+                const system = systemRegistry[systemName]!;
+
+                if (system.isFrozen) continue;
+
+                if (!!system.schedule) {
+                    const schedule = system.schedule;
                     const threshold = schedule.seconds ?
                         schedule.x * 1000 :
                         schedule.x - 1;
@@ -113,7 +135,7 @@ export function createUniverse<
                     createView<
                         Query extends ComponentQuery<CompMap>
                     >(...comps: Query): Iterable<EntityViewData<CompMap, Query>> {
-                        return createRegistryView(registry, comps);
+                        return createRegistryView(entityRegistry, comps);
                     },
                     sendCommand<T = unknown>(system: SysList[number], command: string, data?: T) {
                         if (!commandQueue[system]) commandQueue[system] = {};
@@ -126,14 +148,36 @@ export function createUniverse<
 
                         handler(commandQueue[systemName]![command] as T);
                         delete commandQueue[systemName]![command];
+                    },
+                    freezeSystem(name?: SysList[number]) {
+                        if (name) {
+                            if (!systemRegistry[name]) {
+                                registryError("Attempted to freeze nonexistent system");
+                            }
+
+                            systemRegistry[name]!.isFrozen = true;
+                        } else {
+                            system.isFrozen = true;
+                        }
+                    },
+                    unfreezeSystem(name?: SysList[number]) {
+                        if (name) {
+                            if (!systemRegistry[name]) {
+                                registryError("Attempted to unfreeze nonexistent system");
+                            }
+
+                            systemRegistry[name]!.isFrozen = false;
+                        } else {
+                            system.isFrozen = false;
+                        }
                     }
                 };
 
-                systems[systemName]!(actions, time, delta);
+                systemRegistry[systemName]!.systemProcessor(actions, time, delta);
             }
         },
         view<Query extends ComponentQuery<CompMap>>(...components: Query): Iterable<EntityViewData<CompMap, Query>> {
-            return createRegistryView(registry, components);
+            return createRegistryView(entityRegistry, components);
         }
     };
 }

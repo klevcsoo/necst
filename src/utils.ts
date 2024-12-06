@@ -7,6 +7,6 @@ export function typedKeys<T extends Object>(obj: T): (keyof T)[] {
     return Object.keys(obj) as (keyof T)[];
 }
 
-export function registryError(message: string) {
-    throw new Error(`ECS Registry Error: ${message}`);
+export function registryError(message: string): never {
+    throw new Error(`NECST Registry Error: ${message}`);
 }
