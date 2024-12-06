@@ -101,7 +101,7 @@ export function createUniverse<
             systemRegistry[name]!.schedule = undefined;
         },
         update(resetTime?: boolean) {
-            const now = Date.now();
+            const now = performance.now();
             if (resetTime) createdAt = now;
 
             const time = now - createdAt;
