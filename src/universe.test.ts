@@ -91,21 +91,28 @@ test("update universe (with simple system)", done => {
 });
 
 test("update universe (with command sending & handling)", done => {
-    let senderCommandValue: number = 0;
-    let receiverCommandValue: number = 0;
+    let numberSent: number = 0;
+    let stringSent: string = "test string";
+    let numberReceived: number = 0;
+    let stringReceived: string = "";
 
     universe.registerSystem("sendCommand", ({sendCommand}) => {
-        sendCommand("receiveCommand", "test", ++senderCommandValue);
+        sendCommand("receiveCommand", "numberCommand", ++numberSent);
+        sendCommand("receiveCommand", "stringCommand", stringSent);
     });
     universe.registerSystem("receiveCommand", ({handleCommand}) => {
-        handleCommand("test", (value: number) => {
-            receiverCommandValue = value;
+        handleCommand("numberCommand", (data: number) => {
+            numberReceived = data;
+        });
+        handleCommand("stringCommand", (data: string) => {
+            stringReceived = data;
         });
     });
 
     universe.update();
 
-    expect(receiverCommandValue).toBe(senderCommandValue);
+    expect(numberReceived).toBe(numberSent);
+    expect(stringReceived).toBe(stringSent);
 
     done();
 });

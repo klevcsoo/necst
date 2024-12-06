@@ -3,8 +3,8 @@ import {
     BaseSystemList,
     ComponentQuery,
     EntityRegistry,
-    EntitySystem,
     EntitySystemActions,
+    EntitySystemProcessor,
     EntityViewData,
     SystemRegistry,
     Universe
@@ -27,11 +27,6 @@ export function createUniverse<
 >(): Universe<CompMap, SysList> {
     const entityRegistry: EntityRegistry<CompMap> = {};
     const systemRegistry: SystemRegistry<CompMap, SysList> = {};
-    const commandQueue: {
-        [systemName in SysList[number]]?: {
-            [commandName: string]: unknown
-        }
-    } = {};
 
     let createdAt = performance.now();
     let lastUpdateAt = createdAt;
@@ -66,14 +61,15 @@ export function createUniverse<
         cloneEntity(uuid: string): EntityRegistry<CompMap>[string] {
             return {...entityRegistry[uuid]};
         },
-        registerSystem(name: SysList[number], processor: EntitySystem<CompMap, SysList>) {
+        registerSystem(name: SysList[number], processor: EntitySystemProcessor<CompMap, SysList>) {
             if (systemRegistry[name]) {
                 registryError("Attempted to register already registered system");
             }
 
             systemRegistry[name] = {
                 isFrozen: false,
-                systemProcessor: processor
+                commandQueue: {},
+                systemProcessor: processor,
             };
         },
         unregisterSystem(name: SysList[number]) {
@@ -112,8 +108,8 @@ export function createUniverse<
             const delta = now - lastUpdateAt;
             lastUpdateAt = now;
 
-            for (const systemName of typedKeys(systemRegistry)) {
-                const system = systemRegistry[systemName]!;
+            for (const currentSystemName of typedKeys(systemRegistry)) {
+                const system = systemRegistry[currentSystemName]!;
 
                 if (system.isFrozen) continue;
 
@@ -137,17 +133,18 @@ export function createUniverse<
                     >(...comps: Query): Iterable<EntityViewData<CompMap, Query>> {
                         return createRegistryView(entityRegistry, comps);
                     },
-                    sendCommand<T = unknown>(system: SysList[number], command: string, data?: T) {
-                        if (!commandQueue[system]) commandQueue[system] = {};
-                        // ⬇️ i have no clue ⬇️
-                        (commandQueue[system]! as any)[command] = data;
+                    sendCommand<T = unknown>(systemName: SysList[number], command: string, data?: T) {
+                        if (!systemRegistry[systemName]) {
+                            registryError("Attempted to send command to nonexistent system");
+                        }
+
+                        systemRegistry[systemName]!.commandQueue[command] = data;
                     },
                     handleCommand<T = unknown>(command: string, handler: (data: T) => void) {
-                        if (!commandQueue[systemName]) return;
-                        if (!commandQueue[systemName]![command]) return;
+                        if (!system.commandQueue[command]) return;
 
-                        handler(commandQueue[systemName]![command] as T);
-                        delete commandQueue[systemName]![command];
+                        handler(system.commandQueue[command] as T);
+                        delete system.commandQueue[command];
                     },
                     freezeSystem(name?: SysList[number]) {
                         if (name) {
@@ -173,7 +170,7 @@ export function createUniverse<
                     }
                 };
 
-                systemRegistry[systemName]!.systemProcessor(actions, time, delta);
+                systemRegistry[currentSystemName]!.systemProcessor(actions, time, delta);
             }
         },
         view<Query extends ComponentQuery<CompMap>>(...components: Query): Iterable<EntityViewData<CompMap, Query>> {
@@ -188,7 +185,7 @@ export function* createRegistryView<
 >(
     registry: EntityRegistry<CompMap>, components: Query
 ): Iterable<EntityViewData<CompMap, Query>> {
-    for (const uuid of Object.keys(registry)) {
+    for (const uuid of typedKeys(registry)) {
         const entity = registry[uuid];
 
         if (components.every(value => !!entity[value])) {
